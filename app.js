@@ -49,7 +49,7 @@ app.use(bodyParser.urlencoded({
 	extended: false
 }));
 // set secret variable
-/*
+
 app.set('secret', 'thisismysecret');
 app.use(expressJWT({
 	secret: 'thisismysecret'
@@ -82,7 +82,7 @@ app.use(function(req, res, next) {
 		}
 	});
 });
-*/
+
 
 ///////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// START SERVER /////////////////////////////////
@@ -421,6 +421,54 @@ app.get('/channels', function(req, res) {
 	query.getChannels(peer, req.username, req.orgname)
 	.then(function(
 		message) {
+		res.send(message);
+	});
+});
+
+//  信息上链api 
+app.post('/save', function(req, res) {
+	logger.debug('================ save ======================');
+	var peers  = config.peers; 
+	var  channelName = config.channelName; 
+	var  chaincodeName = config.chaincodeName; 
+	let fcn = "save"; 
+	var option = req.body.option; 
+	var hash = req.body.hash; 
+	var args = req.body.args; 
+	var time = req.body.time; 
+	var str = req.body.str; 
+	logger.debug("args:"+args); 
+	// 直接存入json 
+
+	invoke.invokeChaincode(peers, channelName, chaincodeName, fcn, args, req.username, req.orgname)
+	.then(function(message) {
+		res.send(message);
+	});
+});
+
+app.get('/load/:hash', function(req, res){
+	logger.debug('================ load ======================');
+	var peers  = config.peers; 
+	logger.debug('peers:', peers); 
+	var  channelName = config.channelName; 
+	logger.debug('channelName:', channelName);
+	var  chaincodeName = config.chaincodeName; 
+	logger.debug('chaincodeName:'+chaincodeName);
+
+	let fcn = "load"; 
+	var args = [req.params.hash]; 
+	logger.debug('hash:'+req.params.hash); 
+	logger.debug('req:'+req); 
+	logger.debug('args:'+args); 
+	var ctxusename = config.username;
+	var ctxorgname = config.orgname;
+	var  peer = 'peer1';
+	var ctxusename = 'Jim';
+	var ctxorgname = 'org1';
+	// peer节点的名字
+	query.queryChaincodeEx(peer, config.channelName, config.chaincodeName, args, fcn, ctxusename, ctxorgname)
+	.then(function(message) {
+		logger.debug("message:", message); 
 		res.send(message);
 	});
 });

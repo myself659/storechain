@@ -64,6 +64,51 @@ var queryChaincode = function(peer, channelName, chaincodeName, args, fcn, usern
 			err;
 	});
 };
+
+
+var queryChaincodeEx = function(peer, channelName, chaincodeName, args, fcn, username, org) {
+	var channel = helper.getChannelForOrg(org);
+	var client = helper.getClientForOrg(org);
+	var target = buildTarget(peer, org);
+	return helper.getRegisteredUsers(username, org).then((user) => {
+		tx_id = client.newTransactionID();
+		// send query
+		var request = {
+			chaincodeId: chaincodeName,
+			txId: tx_id,
+			fcn: fcn,
+			args: args
+		};
+		return channel.queryByChaincode(request, target);
+	}, (err) => {
+		logger.info('Failed to get submitter \''+username+'\'');
+		return 'Failed to get submitter \''+username+'\'. Error: ' + err.stack ? err.stack :
+			err;
+	}).then((response_payloads) => {
+		if (response_payloads) {
+			logger.debug('queryChaincodeEx:'+response_payloads)
+			for (let i = 0; i < response_payloads.length; i++) {
+				logger.info(args[0]+' now has ' + response_payloads[i].toString('utf8') +
+					' after the move');
+				return args[0]+' now has ' + response_payloads[i].toString('utf8') +
+					' after the move';
+			}
+		} else {
+			logger.error('response_payloads is null');
+			return 'response_payloads is null';
+		}
+	}, (err) => {
+		logger.error('Failed to send query due to error: ' + err.stack ? err.stack :
+			err);
+		return 'Failed to send query due to error: ' + err.stack ? err.stack : err;
+	}).catch((err) => {
+		logger.error('Failed to end to end test with error:' + err.stack ? err.stack :
+			err);
+		return 'Failed to end to end test with error:' + err.stack ? err.stack :
+			err;
+	});
+};
+
 var getBlockByNumber = function(peer, blockNumber, username, org) {
 	var target = buildTarget(peer, org);
 	var channel = helper.getChannelForOrg(org);
@@ -269,6 +314,7 @@ function buildTarget(peer, org) {
 }
 
 exports.queryChaincode = queryChaincode;
+exports.queryChaincodeEx = queryChaincodeEx;
 exports.getBlockByNumber = getBlockByNumber;
 exports.getTransactionByID = getTransactionByID;
 exports.getBlockByHash = getBlockByHash;

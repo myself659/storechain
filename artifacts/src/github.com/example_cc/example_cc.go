@@ -16,8 +16,8 @@ limitations under the License.
 
 package main
 
-
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 
@@ -31,13 +31,16 @@ var logger = shim.NewLogger("example_cc0")
 type SimpleChaincode struct {
 }
 
-func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response  {
+func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
+	fmt.Println("*********   init chaincode store *******")
 	logger.Info("########### example_cc0 Init ###########")
 
 	_, args := stub.GetFunctionAndParameters()
 	var A, B string    // Entities
 	var Aval, Bval int // Asset holdings
 	var err error
+
+	return shim.Success(nil)
 
 	// Initialize the chaincode
 	A = args[0]
@@ -65,7 +68,6 @@ func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response  {
 
 	return shim.Success(nil)
 
-
 }
 
 // Transaction makes payment of X units from A to B
@@ -73,16 +75,16 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 	logger.Info("########### example_cc0 Invoke ###########")
 
 	function, args := stub.GetFunctionAndParameters()
-	
-	if function == "delete" {
-		// Deletes an entity from its state
-		return t.delete(stub, args)
+
+	if function == "load" {
+		// queries an entity state
+		return t.load(stub, args)
 	}
 
-	if function == "query" {
-		// queries an entity state
-		return t.query(stub, args)
+	if function == "save" {
+		return t.save(stub, args)
 	}
+
 	if function == "move" {
 		// Deletes an entity from its state
 		return t.move(stub, args)
@@ -146,7 +148,7 @@ func (t *SimpleChaincode) move(stub shim.ChaincodeStubInterface, args []string) 
 		return shim.Error(err.Error())
 	}
 
-        return shim.Success(nil);
+	return shim.Success(nil)
 }
 
 // Deletes an entity from state
@@ -195,7 +197,69 @@ func (t *SimpleChaincode) query(stub shim.ChaincodeStubInterface, args []string)
 	return shim.Success(Avalbytes)
 }
 
+// Query callback representing the query of a chaincode
+func (t *SimpleChaincode) load(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	fmt.Println("----------load---------- ")
+	var A string // Entities
+	var err error
+
+	if len(args) != 1 {
+		return shim.Error("Incorrect number of arguments. Expecting name of the person to query")
+	}
+
+	A = args[0]
+	fmt.Println("load:", A)
+	// Get the state from the ledger
+	Avalbytes, err := stub.GetState(A)
+	if err != nil {
+		jsonResp := "{\"Error\":\"Failed to get state for " + A + "\"}"
+		return shim.Error(jsonResp)
+	}
+
+	if Avalbytes == nil {
+		jsonResp := "{\"Error\":\"Nil amount for " + A + "\"}"
+		return shim.Error(jsonResp)
+	}
+
+	jsonResp := string(Avalbytes)
+	logger.Infof("Query Response:%s\n", jsonResp)
+	return shim.Success(Avalbytes)
+}
+
+type saveRsp struct {
+	Code int
+	Hash string
+	TxID string
+}
+
+// Query callback representing the query of a chaincode
+func (t *SimpleChaincode) save(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	fmt.Println("----------save---------- ")
+	if len(args) != 2 {
+		return shim.Error("Incorrect number of arguments. Expecting name of the person to query")
+	}
+
+	key := args[0]
+	value := args[1]
+	fmt.Println("save:", key, value)
+	err := stub.PutState(key, []byte(value))
+	if err != nil {
+		return shim.Error("get failed ")
+	}
+	var rsp saveRsp
+	rsp.Code = 0
+	rsp.TxID = stub.GetTxID()
+	b, err := json.Marshal(rsp)
+	if err != nil {
+		fmt.Println("save:", err)
+		return shim.Error("save :json failed")
+	}
+
+	return shim.Success(b)
+}
+
 func main() {
+	fmt.Println("******  -- main start -- *******")
 	err := shim.Start(new(SimpleChaincode))
 	if err != nil {
 		logger.Errorf("Error starting Simple chaincode: %s", err)
